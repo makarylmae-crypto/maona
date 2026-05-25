@@ -1,37 +1,60 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function FarmerProfile() {
-  const { state, updateUser } = useApp();
-  const user = state.currentUser;
+  const { state, refreshUser } = useApp(); // remove local updateUser
   const [form, setForm] = useState({
-    name: user?.name || '',
-    farmName: user?.farmName || '',
-    farmDescription: user?.farmDescription || '',
-    address: user?.address || '',
-    phone: user?.phone || '',
-    email: user?.email || '',
+    name: '',
+    farmName: '',
+    farmDescription: '',
+    address: '',
+    phone: '',
+    email: '',
   });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // fetch profile from database
+  useEffect(() => {
+    if (!state.currentUser) return;
+    fetch(`/api/farmer/profile?id=${state.currentUser.id}`)
+      .then(res => res.json())
+      .then((data) => {
+        setForm({
+          name: data.name || '',
+          farmName: data.farmName || '',
+          farmDescription: data.farmDescription || '',
+          address: data.address || '',
+          phone: data.phone || '',
+          email: data.email || '',
+        });
+      })
+      .catch(console.error);
+  }, [state.currentUser]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setSaved(false);
+
     if (!form.name.trim()) { setError('Name is required'); return; }
     if (!form.farmName.trim()) { setError('Farm name is required'); return; }
-    updateUser({
-      name: form.name,
-      farmName: form.farmName,
-      farmDescription: form.farmDescription,
-      address: form.address,
-      phone: form.phone,
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+
+    try {
+      const res = await fetch('/api/farmer/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error('Failed to update profile');
+      setSaved(true);
+      refreshUser(); // refresh currentUser from backend
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save profile');
+    }
   };
 
-  if (!user || user.role !== 'farmer') return null;
+  if (!state.currentUser || state.currentUser.role !== 'farmer') return null;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#0a0a1a] py-8 px-4">
@@ -46,7 +69,6 @@ export default function FarmerProfile() {
           {error && <div className="bg-[#ff5252]/10 border border-[#ff5252]/30 text-[#ff5252] px-4 py-3 rounded-lg text-sm">{error}</div>}
           {saved && <div className="bg-[#00c853]/10 border border-[#00c853]/30 text-[#00e676] px-4 py-3 rounded-lg text-sm">✅ Profile updated successfully!</div>}
 
-          {/* Farm Avatar */}
           <div className="flex items-center gap-4 pb-4 border-b border-[#2a2a4a]">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#00c853]/20 to-[#00e676]/10 flex items-center justify-center text-4xl border border-[#00c853]/30">
               🏠
@@ -60,11 +82,11 @@ export default function FarmerProfile() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-[#a0a4b8] mb-1">Your Name *</label>
-              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6] focus:outline-none focus:border-[#00c853] focus:ring-1 focus:ring-[#00c853]/30 placeholder:text-[#6b708d]" required />
+              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6]" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#a0a4b8] mb-1">Farm Name *</label>
-              <input type="text" value={form.farmName} onChange={(e) => setForm({ ...form, farmName: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6] focus:outline-none focus:border-[#00c853] focus:ring-1 focus:ring-[#00c853]/30 placeholder:text-[#6b708d]" required />
+              <input type="text" value={form.farmName} onChange={(e) => setForm({ ...form, farmName: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6]" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#a0a4b8] mb-1">Email</label>
@@ -72,21 +94,21 @@ export default function FarmerProfile() {
             </div>
             <div>
               <label className="block text-sm font-medium text-[#a0a4b8] mb-1">Phone Number</label>
-              <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6] focus:outline-none focus:border-[#00c853] focus:ring-1 focus:ring-[#00c853]/30 placeholder:text-[#6b708d]" placeholder="+63 XXX XXX XXXX" />
+              <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6]" placeholder="+63 XXX XXX XXXX" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-[#a0a4b8] mb-1">Farm Address</label>
-              <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6] focus:outline-none focus:border-[#00c853] focus:ring-1 focus:ring-[#00c853]/30 placeholder:text-[#6b708d]" placeholder="Hinunangan, Southern Leyte" />
+              <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6]" placeholder="Hinunangan, Southern Leyte" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-[#a0a4b8] mb-1">Farm Description / Bio</label>
-              <textarea value={form.farmDescription} onChange={(e) => setForm({ ...form, farmDescription: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6] focus:outline-none focus:border-[#00c853] focus:ring-1 focus:ring-[#00c853]/30 placeholder:text-[#6b708d]" rows={3} placeholder="Tell customers about your farm, your farming practices, and what makes your produce special..." />
+              <textarea value={form.farmDescription} onChange={(e) => setForm({ ...form, farmDescription: e.target.value })} className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-4 py-2.5 text-[#e8eaf6]" rows={3} placeholder="Tell customers about your farm..." />
             </div>
           </div>
 
           <div className="border-t border-[#2a2a4a] pt-5 flex items-center justify-between">
             <p className="text-xs text-[#6b708d]">📋 Your profile is visible to residents browsing your products</p>
-            <button type="submit" className="bg-[#00c853] hover:bg-[#00a844] text-[#0a0a1a] font-semibold px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-[#00c853]/20">
+            <button type="submit" className="bg-[#00c853] hover:bg-[#00a844] text-[#0a0a1a] font-semibold px-8 py-2.5 rounded-xl shadow-lg">
               💾 Save Profile
             </button>
           </div>
