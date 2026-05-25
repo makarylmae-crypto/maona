@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+// full path: /src/components/CartPage.tsx
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { PAYMENT_METHODS, type PaymentMethod } from '../types';
 
@@ -6,15 +7,39 @@ interface CartPageProps {
   onNavigate: (page: string) => void;
 }
 
+interface CartItem {
+  productId: number;
+  quantity: number;
+  product: {
+    id: number;
+    name: string;
+    image: string;
+    price: number;
+    stock: number;
+    farmName: string;
+    unit: string;
+  };
+}
+
 export default function CartPage({ onNavigate }: CartPageProps) {
-  const { state, removeFromCart, updateCartQuantity, placeOrder } = useApp();
-  const { cart } = state;
+  const { removeFromCart, updateCartQuantity, placeOrder } = useApp();
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [paymentStep, setPaymentStep] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // fetch cart dynamically from database
+  useEffect(() => {
+    fetch('/api/cart') // backend should return cart items with product info
+      .then(res => res.json())
+      .then((data) => {
+        setCart(data.rows || []);
+      })
+      .catch(console.error);
+  }, []);
 
   const totalAmount = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -67,95 +92,8 @@ export default function CartPage({ onNavigate }: CartPageProps) {
             <p className="text-[#6b708d] mb-6">Start shopping for fresh produce!</p>
             <button onClick={() => onNavigate('shop')} className="bg-[#00c853] hover:bg-[#00a844] text-[#0a0a1a] px-6 py-3 rounded-xl font-semibold transition-all shadow-lg shadow-[#00c853]/20">Browse Products</button>
           </div>
-        ) : paymentStep ? (
-          <div className="max-w-lg mx-auto">
-            <div className="bg-[#1a1a2e] rounded-2xl border border-[#2a2a4a] p-6 shadow-lg">
-              <div className="text-center mb-6">
-                <span className="text-5xl block mb-3">💳</span>
-                <h2 className="text-xl font-bold text-[#e8eaf6]">Complete Your Payment</h2>
-                <p className="text-[#6b708d] text-sm mt-1">Pay via {PAYMENT_METHODS.find(p => p.value === paymentMethod)?.label}</p>
-              </div>
-              <div className="bg-[#00c853]/10 rounded-xl p-4 mb-6 border border-[#00c853]/20">
-                <div className="flex justify-between items-center">
-                  <span className="text-[#a0a4b8]">Total Amount</span>
-                  <span className="text-2xl font-bold text-[#00e676]">₱{totalAmount.toLocaleString()}</span>
-                </div>
-              </div>
-
-              {/* GCash Payment Info */}
-              {paymentMethod === 'gcash' && (
-                <div className="bg-[#448aff]/10 border border-[#448aff]/20 rounded-xl p-4 mb-6">
-                  <h3 className="font-semibold text-[#448aff] mb-2">📱 GCash Payment</h3>
-                  <div className="text-sm text-[#a0a4b8] space-y-1">
-                    <p>1. Open GCash app</p>
-                    <p>2. Send payment to: <strong className="text-[#e8eaf6]">0917 123 4567</strong></p>
-                    <p>3. Amount: <strong className="text-[#448aff]">₱{totalAmount.toLocaleString()}</strong></p>
-                    <p className="mt-2 text-yellow-400">📸 Take a screenshot of your payment confirmation</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Maya Payment Info */}
-              {paymentMethod === 'maya' && (
-                <div className="bg-[#7c4dff]/10 border border-[#7c4dff]/20 rounded-xl p-4 mb-6">
-                  <h3 className="font-semibold text-[#b388ff] mb-2">💳 Maya Payment</h3>
-                  <div className="text-sm text-[#a0a4b8] space-y-1">
-                    <p>1. Open Maya app</p>
-                    <p>2. Send payment to: <strong className="text-[#e8eaf6]">0918 765 4321</strong></p>
-                    <p>3. Amount: <strong className="text-[#b388ff]">₱{totalAmount.toLocaleString()}</strong></p>
-                    <p className="mt-2 text-yellow-400">📸 Take a screenshot of your payment confirmation</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Receipt Upload */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-[#a0a4b8] mb-2">
-                  📤 Upload Payment Receipt / Screenshot
-                </label>
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-                    receiptPreview ? 'border-[#00c853] bg-[#00c853]/5' : 'border-[#2a2a4a] hover:border-[#3a3a5a]'
-                  }`}
-                >
-                  {receiptPreview ? (
-                    <div className="space-y-2">
-                      <img src={receiptPreview} alt="Receipt preview" className="max-h-40 mx-auto rounded-lg" />
-                      <p className="text-xs text-[#00e676]">✅ Receipt uploaded — click to change</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <span className="text-4xl block">📄</span>
-                      <p className="text-sm text-[#6b708d]">Tap to upload receipt screenshot</p>
-                      <p className="text-xs text-[#6b708d]">PNG, JPG accepted</p>
-                    </div>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleReceiptUpload}
-                    className="hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button onClick={() => setPaymentStep(false)} className="flex-1 bg-[#1a1a2e] hover:bg-[#282845] text-[#a0a4b8] py-3 rounded-xl font-medium border border-[#2a2a4a] transition-colors">Back</button>
-                <button onClick={handlePlaceOrder} disabled={!receiptPreview} className={`flex-1 py-3 rounded-xl font-semibold transition-all shadow-lg ${
-                  receiptPreview
-                    ? 'bg-[#00c853] hover:bg-[#00a844] text-[#0a0a1a] shadow-[#00c853]/20'
-                    : 'bg-[#2a2a4a] text-[#6b708d] cursor-not-allowed'
-                }`}>
-                  {receiptPreview ? 'Confirm & Place Order' : 'Upload receipt first'}
-                </button>
-              </div>
-            </div>
-          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {cart.map((item) => (
                 <div key={item.productId} className="bg-[#1a1a2e] rounded-xl border border-[#2a2a4a] p-4 shadow-lg flex items-center gap-4">
@@ -185,7 +123,6 @@ export default function CartPage({ onNavigate }: CartPageProps) {
               ))}
             </div>
 
-            {/* Order Summary */}
             <div className="bg-[#1a1a2e] rounded-xl border border-[#2a2a4a] p-6 shadow-lg h-fit sticky top-24">
               <h3 className="font-semibold text-[#e8eaf6] mb-4">Order Summary</h3>
               <div className="space-y-3 mb-4">
@@ -203,7 +140,6 @@ export default function CartPage({ onNavigate }: CartPageProps) {
                 </div>
               </div>
 
-              {/* Payment Method */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-[#a0a4b8] mb-2">Payment Method</label>
                 <div className="space-y-2">
@@ -220,7 +156,6 @@ export default function CartPage({ onNavigate }: CartPageProps) {
                 </div>
               </div>
 
-              {/* Delivery Notes */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-[#a0a4b8] mb-1">Delivery Notes (Optional)</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special instructions for the farmer?" className="w-full bg-[#0d0d24] border border-[#2a2a4a] rounded-lg px-3 py-2 text-sm text-[#e8eaf6] focus:outline-none focus:border-[#00c853] placeholder:text-[#6b708d]" rows={2} />
