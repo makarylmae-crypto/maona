@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MySQL pool (all from env vars)
+// MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
@@ -17,13 +17,13 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
-// absolute path to React build
+// full path to React build
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DIST_PATH = path.join(__dirname, "dist");
 app.use(express.static(DIST_PATH));
 
-// helper to get all table names
+// helper to get all tables
 async function getAllTables() {
   const [tables] = await pool.query("SHOW TABLES");
   return tables.map(row => Object.values(row)[0]);
