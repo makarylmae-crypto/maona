@@ -14,7 +14,9 @@ interface Product {
   unit: string;
   stock: number;
   farmName: string;
-  location: string;
+  farmerName?: string;
+  location?: string;
+  category?: string;
   organic?: boolean;
 }
 
@@ -34,16 +36,16 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
 
   useEffect(() => {
-    // fetch products from API
+    // fetch products dynamically
     fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => setProducts(data.rows || []))
+      .then(res => res.json())
+      .then(data => setProducts(data.rows || []))
       .catch(console.error);
 
-    // fetch categories from API
+    // fetch categories dynamically
     fetch('/api/categories')
-      .then((res) => res.json())
-      .then((data) => setCategories(data.rows || []))
+      .then(res => res.json())
+      .then(data => setCategories(data.rows || []))
       .catch(console.error);
   }, []);
 
@@ -58,14 +60,15 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
 
   return (
     <div className="bg-[#0a0a1a] text-[#e8eaf6]">
-      {/* Hero section remains same */}
-      {/* Categories Section */}
+      {/* Categories */}
       <section className="bg-[#0a0a1a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <h2 className="text-3xl font-bold text-center mb-3">
             Browse by <span className="text-gradient">Category</span>
           </h2>
-          <p className="text-center text-[#6b708d] mb-10 max-w-lg mx-auto">Find exactly what you're looking for</p>
+          <p className="text-center text-[#6b708d] mb-10 max-w-lg mx-auto">
+            Find exactly what you're looking for
+          </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {categories.map((cat) => (
               <button
@@ -84,7 +87,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
         </div>
       </section>
 
-      {/* Featured Products Section */}
+      {/* Products */}
       <section className="bg-[#0d0d24] border-t border-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
@@ -138,7 +141,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                       <p className="text-sm text-[#6b708d] line-clamp-2 mb-3 leading-relaxed">{product.description}</p>
                       <div className="flex items-center justify-between">
                         <span className="text-xl font-bold text-[#00e676]">₱{product.price}</span>
-                        {isAuthenticated && currentUser?.role === 'resident' && product.stock > 0 && (
+                        {state.isAuthenticated && state.currentUser?.role === 'resident' && product.stock > 0 && (
                           <button
                             onClick={() => addToCart(product, 1)}
                             className="bg-[#00c853] hover:bg-[#00a844] text-[#0a0a1a] px-3 py-1.5 rounded-lg text-sm font-semibold transition-all"
