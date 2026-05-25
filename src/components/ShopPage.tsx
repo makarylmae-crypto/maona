@@ -1,24 +1,52 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { PRODUCT_CATEGORIES, type ProductCategory } from '../types';
+import { type Product, type ProductCategory } from '../types';
 
 export default function ShopPage() {
-  const { getFilteredProducts, addToCart } = useApp();
+  const { addToCart } = useApp();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<ProductCategory | ''>('');
+  const [category, setCategory] = useState<string>('');
   const [sortBy, setSortBy] = useState<'name' | 'price-asc' | 'price-desc' | 'newest'>('newest');
   const [addedMsg, setAddedMsg] = useState<string | null>(null);
 
-  let products = getFilteredProducts(search, category);
+  // fetch products and categories from backend
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => setProducts(data.rows || []))
+      .catch(console.error);
 
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => setCategories(data.rows || []))
+      .catch(console.error);
+  }, []);
+
+  // filter products
+  let filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) &&
+    (category ? p.category === category : true)
+  );
+
+  // sort products
   switch (sortBy) {
-    case 'name': products = [...products].sort((a, b) => a.name.localeCompare(b.name)); break;
-    case 'price-asc': products = [...products].sort((a, b) => a.price - b.price); break;
-    case 'price-desc': products = [...products].sort((a, b) => b.price - a.price); break;
-    case 'newest': products = [...products].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); break;
+    case 'name':
+      filteredProducts = [...filteredProducts].sort((a, b) => a.name.localeCompare(b.name));
+      break;
+    case 'price-asc':
+      filteredProducts = [...filteredProducts].sort((a, b) => a.price - b.price);
+      break;
+    case 'price-desc':
+      filteredProducts = [...filteredProducts].sort((a, b) => b.price - a.price);
+      break;
+    case 'newest':
+      filteredProducts = [...filteredProducts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      break;
   }
 
-  const handleAddToCart = (product: typeof products[0]) => {
+  const handleAddToCart = (product: Product) => {
     addToCart(product, 1);
     setAddedMsg(product.id);
     setTimeout(() => setAddedMsg(null), 1500);
@@ -49,11 +77,11 @@ export default function ShopPage() {
             </div>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value as ProductCategory | '')}
+              onChange={(e) => setCategory(e.target.value)}
               className="bg-[#1a1a2e] border border-[#2a2a4a] rounded-xl px-4 py-2.5 text-[#e8eaf6] focus:outline-none focus:border-[#00c853]"
             >
               <option value="">All Categories</option>
-              {PRODUCT_CATEGORIES.map((cat) => (
+              {categories.map(cat => (
                 <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
               ))}
             </select>
@@ -74,12 +102,12 @@ export default function ShopPage() {
       {/* Results */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <p className="text-sm text-[#6b708d] mb-4">
-          {products.length} product{products.length !== 1 ? 's' : ''} found
-          {category && ` in ${PRODUCT_CATEGORIES.find(c => c.value === category)?.label}`}
+          {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+          {category && ` in ${categories.find(c => c.value === category)?.label}`}
           {search && ` for "${search}"`}
         </p>
 
-        {products.length === 0 ? (
+        {filteredProducts.length === 0 ? (
           <div className="bg-[#1a1a2e] rounded-2xl p-16 text-center border border-[#2a2a4a]">
             <span className="text-6xl block mb-4">🔍</span>
             <h3 className="text-lg font-semibold text-[#e8eaf6] mb-2">No products found</h3>
@@ -88,7 +116,7 @@ export default function ShopPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {products.map((product) => (
+            {filteredProducts.map(product => (
               <div key={product.id} className="bg-[#1a1a2e] rounded-2xl border border-[#2a2a4a] overflow-hidden shadow-lg shadow-black/20 hover:shadow-[#00c853]/5 hover:border-[#00c853]/20 hover:-translate-y-1.5 transition-all group">
                 <div className="relative h-48 overflow-hidden bg-[#0d0d24]">
                   <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
